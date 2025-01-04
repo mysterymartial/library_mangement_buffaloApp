@@ -1,0 +1,163 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 800px;
+    margin: 50px auto;
+    background: #fff;
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+h1, h2 {
+    color: #333;
+}
+
+form {
+    margin-bottom: 20px;
+}
+
+form div {
+    margin-bottom: 10px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+input[type="text"], input[type="email"], select {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+#messages {
+    margin-top: 20px;
+}
+
+#messages div {
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+#messages .success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+#messages .error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.book-list {
+    margin-top: 20px;
+}
+
+.book-item {
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.book-item strong {
+    font-size: 1.1em;
+}
+
+.book-item button {
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.book-item button:hover {
+    background-color: #ff2d2d;
+}
+
+/* Media Queries for Responsiveness */
+
+/* Small Screens (Mobile) */
+@media (max-width: 600px) {
+    .container {
+        width: 95%;
+        padding: 15px;
+    }
+
+    form div {
+        margin-bottom: 15px;
+    }
+
+    input[type="text"], input[type="email"], select, button {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .book-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .book-item button {
+        margin-top: 10px;
+        width: 100%;
+    }
+}
+
+/* Medium Screens (Tablets) */
+@media (max-width: 768px) {
+    .container {
+        width: 90%;
+    }
+
+    .book-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .book-item button {
+        margin-top: 10px;
+        width: 100%;
+    }
+}
+
+/* Large Screens (Desktops) */
+@media (min-width: 1024px) {
+    .container {
+        width: 80%;
+    }
+
+    form div {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    label, input[type="text"], input[type="email"], select, button {
+        width: 48%;
+    }
+}

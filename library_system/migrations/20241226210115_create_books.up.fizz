@@ -1,0 +1,9 @@
+create_table("books") {
+  t.Column("id", "uuid", {primary: true})
+  t.Column("title", "string", {})
+  t.Column("author", "string", {})
+  t.Column("isbn", "string", {})
+  t.Column("status", "string", {})
+  t.Timestamps()
+  t.Index("isbn", {"unique": true})
+}

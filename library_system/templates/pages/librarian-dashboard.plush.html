@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library System</title>
+    <link rel="stylesheet" href="../../assets/css/libarian_dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/reponsive.css">
+</head>
+<body>
+<header class="header">
+    <h1>Welcome to the Librarian Privileges Page</h1>
+</header>
+
+<div class="container">
+    <!-- Add Book Form -->
+    <div class="form-section">
+        <h2>Add a New Book</h2>
+        <input type="text" id="title" placeholder="Title" required>
+        <input type="text" id="author" placeholder="Author" required>
+        <input type="text" id="isbn" placeholder="ISBN" required>
+        <button id="add-book-btn">Add Book</button>
+    </div>
+
+    <!-- Update Book Form -->
+    <div class="form-section">
+        <h2>Update Book</h2>
+        <input type="text" id="update-title" placeholder="Title">
+        <input type="text" id="update-author" placeholder="Author">
+        <input type="text" id="update-isbn" placeholder="ISBN" required>
+        <input type="hidden" id="update-book-id">
+        <button id="update-book-btn">Update Book</button>
+    </div>
+
+    <!-- Search Books -->
+    <div class="form-section">
+        <h2>Search Books</h2>
+        <input type="text" id="search-query" placeholder="Search by title or author" required/>
+        <button id="search-books-btn">Search</button>
+    </div>
+
+    <!-- Books List -->
+    <div class="book-list">
+        <h2>Books List</h2>
+        <div id="books-container"></div>
+    </div>
+</div>
+
+<script src="../../assets/js/libarianDashboard.js"></script>
+</body>
+</html>

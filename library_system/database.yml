@@ -1,0 +1,24 @@
+---
+development:
+  dialect: mysql
+  database: library_system_development
+  user: root
+  password: "Mystery@ sax"
+  host: 127.0.0.1
+  port: 3306
+
+test:
+  dialect: mysql
+  database: library_system_test
+  user: root
+  password: "Mystery@ sax"
+  host: 127.0.0.1
+  port: 3306
+
+production:
+  dialect: mysql
+  database: library_system_production
+  user: root
+  password: "Mystery@ sax"
+  host: 127.0.0.1
+  port: 3306

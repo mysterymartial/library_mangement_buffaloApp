@@ -1,0 +1,30 @@
+/*.notification {*/
+/*    position: fixed;*/
+/*    top: 20px;*/
+/*    right: 20px;*/
+/*    padding: 15px;*/
+/*    border-radius: 4px;*/
+/*    color: white;*/
+/*    display: none;*/
+/*}*/
+
+/*.notification.success {*/
+/*    background-color: #4CAF50;*/
+/*}*/
+
+/*.notification.error {*/
+/*    background-color: #f44336;*/
+/*}*/
+
+/*.book-list {*/
+/*    display: grid;*/
+/*    gap: 20px;*/
+/*    padding: 20px;*/
+/*}*/
+
+/*.book-item {*/
+/*    background: white;*/
+/*    padding: 15px;*/
+/*    border-radius: 8px;*/
+/*    box-shadow: 0 2px 4px rgba(0,0,0,0.1);*/
+/*}*/
