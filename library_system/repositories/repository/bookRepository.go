@@ -31,10 +31,21 @@ func NewBookRepository(db *pop.Connection) *BookRepositoryImpl {
 
 func (r *BookRepositoryImpl) AddBook(book *models.Book) error {
 	return r.DB.Transaction(func(tx *pop.Connection) error {
-		return tx.Create(book)
+		existingBook := &models.Book{}
+		err := tx.Where("isbn = ?", book.ISBN).First(existingBook)
+		if err == nil {
+			return fmt.Errorf("duplicate ISBN: book with ISBN %s already exists", book.ISBN)
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("error checking existing ISBN: %w", err)
+		}
+
+		if err := tx.Create(book); err != nil {
+			return fmt.Errorf("error adding book: %w", err)
+		}
+		return nil
 	})
 }
-
 func (r *BookRepositoryImpl) RemoveBook(bookID uuid.UUID) error {
 	return r.DB.Transaction(func(tx *pop.Connection) error {
 		book := &models.Book{}
@@ -85,12 +96,13 @@ func (r *BookRepositoryImpl) GetBookByISBN(isbn string) (*models.Book, error) {
 	err := r.DB.Where("isbn = ?", isbn).First(book)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, fmt.Errorf("book with ISBN %s not found", isbn) // Match the test case expectation
 		}
 		return nil, fmt.Errorf("error finding book by ISBN: %w", err)
 	}
 	return book, nil
 }
+
 func (r *BookRepositoryImpl) GetAllBooks() ([]*models.Book, error) {
 	var books []*models.Book
 	if err := r.DB.All(&books); err != nil {

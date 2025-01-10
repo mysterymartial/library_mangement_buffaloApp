@@ -48,11 +48,14 @@ func App() *buffalo.App {
 		app = buffalo.New(buffalo.Options{
 			Env:          ENV,
 			SessionStore: sessionStore,
-			SessionName:  sessionName,
+			SessionName:  "_library_system_session",
+			Addr:         ":3000",
 		})
 
-		app.Use(SecurityHeaders)
+		// Apply CORS middleware
 		app.Use(CORS)
+
+		app.Use(SecurityHeaders)
 		app.Use(SetCurrentUser)
 
 		db := pop.Connections[ENV]
@@ -75,20 +78,60 @@ func App() *buffalo.App {
 
 		bookGroup := app.Group("/books")
 		bookGroup.GET("/", bookController.GetAllBooks)
+		bookGroup.OPTIONS("/", func(c buffalo.Context) error {
+			c.Response().WriteHeader(http.StatusOK)
+			return nil
+		})
 		bookGroup.POST("/add", bookController.AddBook)
+		bookGroup.OPTIONS("/add", func(c buffalo.Context) error {
+			c.Response().WriteHeader(http.StatusOK)
+			return nil
+		})
 		bookGroup.DELETE("/remove/{id}", bookController.RemoveBook)
+		bookGroup.OPTIONS("/remove/{id}", func(c buffalo.Context) error {
+			c.Response().WriteHeader(http.StatusOK)
+			return nil
+		})
 		bookGroup.GET("/search", bookController.SearchBook)
+		bookGroup.OPTIONS("/search", func(c buffalo.Context) error {
+			c.Response().WriteHeader(http.StatusOK)
+			return nil
+		})
 		bookGroup.PUT("/update", bookController.UpdateBook)
+		bookGroup.OPTIONS("/update", func(c buffalo.Context) error {
+			c.Response().WriteHeader(http.StatusOK)
+			return nil
+		})
 		bookGroup.GET("/getBookById/{id}", bookController.GetBookByID)
+		bookGroup.OPTIONS("/getBookById/{id}", func(c buffalo.Context) error {
+			c.Response().WriteHeader(http.StatusOK)
+			return nil
+		})
 
 		userGroup := app.Group("/users")
 		userGroup.POST("/register", userController.RegisterUser)
+		userGroup.OPTIONS("/register", func(c buffalo.Context) error {
+			c.Response().WriteHeader(http.StatusOK)
+			return nil
+		})
 
 		protectedGroup := userGroup.Group("/")
-		protectedGroup.Use(Authorize)
+		//protectedGroup.Use(Authorize)
 		protectedGroup.POST("/checkout", userController.CheckoutBook)
+		protectedGroup.OPTIONS("/checkout", func(c buffalo.Context) error {
+			c.Response().WriteHeader(http.StatusOK)
+			return nil
+		})
 		protectedGroup.POST("/return", userController.ReturnBook)
+		protectedGroup.OPTIONS("/return", func(c buffalo.Context) error {
+			c.Response().WriteHeader(http.StatusOK)
+			return nil
+		})
 		protectedGroup.POST("/reserve", userController.ReserveBook)
+		protectedGroup.OPTIONS("/reserve", func(c buffalo.Context) error {
+			c.Response().WriteHeader(http.StatusOK)
+			return nil
+		})
 
 		app.ServeFiles("/", packr.New("public", "../public"))
 		app.GET("/", HomeHandler)

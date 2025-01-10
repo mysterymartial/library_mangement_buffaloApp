@@ -7,9 +7,8 @@ import (
 )
 
 type BookActionRequest struct {
-	BookID   uuid.UUID `json:"book_id"`
-	UserID   uuid.UUID `json:"user_id,omitempty"`
-	UserName string    `json:"user_name"`
+	BookID uuid.UUID `json:"book_id"`
+	Email  string    `json:"email"`
 }
 
 type BookActionResponse struct {
@@ -19,5 +18,5 @@ type BookActionResponse struct {
 	Status     string     `json:"status"`
 	LoanDate   time.Time  `json:"loanDate"`
 	ReturnDate *time.Time `json:"returnDate,omitempty"`
-	UserName   string     `json:"userName"`
+	Email      string     `json:"user_email"`
 }

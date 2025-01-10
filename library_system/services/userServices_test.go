@@ -100,267 +100,406 @@ func TestUserServices_RegisterUser(t *testing.T) {
 
 func TestUserServices_CheckOutBook(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		bookID, _ := uuid.NewV4()
-		userID, _ := uuid.NewV4()
+		bookID := uuid.Must(uuid.NewV4())
+		userID := uuid.Must(uuid.NewV4())
+		email := "meenah20@gmail.com"
+
 		userRepo := &mock.MockUserRepo{
 			MockUser: []models.User{
-				{ID: userID, Name: "Aminat Usman", Email: "meenah20@gmail.com"},
+				{ID: userID, Name: "Aminat Usman", Email: email},
 			},
 		}
 		bookRepo := &mock.MockBookRepository{
 			MockBooks: []models.Book{
-				{ID: bookID, Title: "Test Book", Author: "Test Author", ISBN: "123456", Status: "available"},
+				{ID: bookID, Title: "Test Book", Status: "available"},
 			},
 		}
-		loanRepo := &mock.MockLoanRepository{
-			MockLoans: []models.Loan{},
-		}
+		loanRepo := &mock.MockLoanRepository{}
 		service := UserServices{UserRepo: userRepo, LoanRepo: loanRepo, BookRepo: bookRepo}
 
 		request := Dto.BookActionRequest{
-			UserID:   userID,
-			BookID:   bookID,
-			UserName: "Aminat Usman",
+			BookID: bookID,
+			Email:  email,
 		}
 
-		action, err := service.CheckOutBook(request)
+		response, err := service.CheckOutBook(request)
 
 		assert.NoError(t, err)
-		assert.NotNil(t, action)
-		assert.Equal(t, "borrowed", action.Status)
+		assert.NotNil(t, response)
+		assert.Equal(t, "borrowed", response.Status)
+		assert.Equal(t, email, response.Email)
 	})
 
-	t.Run("User Not Found", func(t *testing.T) {
-		bookID, _ := uuid.NewV4()
-		userID, _ := uuid.NewV4()
-		userRepo := &mock.MockUserRepo{
-			GetUserByIDError: errors.New("User Not Found"),
+	t.Run("invalid email", func(t *testing.T) {
+		bookID := uuid.Must(uuid.NewV4())
+		service := UserServices{}
+
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  "invalid-email",
 		}
-		bookRepo := &mock.MockBookRepository{}
-		loanRepo := &mock.MockLoanRepository{}
-		service := UserServices{userRepo, loanRepo, bookRepo}
 
-		request := Dto.BookActionRequest{UserID: userID, BookID: bookID, UserName: "Aminat Usman"}
-		action, err := service.CheckOutBook(request)
+		response, err := service.CheckOutBook(request)
+
 		assert.Error(t, err)
-		assert.Nil(t, action)
-		assert.Equal(t, "User not found", err.Error())
-
+		assert.Nil(t, response)
+		assert.Equal(t, "Invalid Email Address", err.Error())
 	})
-	t.Run("UserName Mismatch", func(t *testing.T) {
-		bookID, _ := uuid.NewV4()
-		userID, _ := uuid.NewV4()
+
+	t.Run("user not found", func(t *testing.T) {
+		bookID := uuid.Must(uuid.NewV4())
+		email := "nonexistent@example.com"
+
+		userRepo := &mock.MockUserRepo{
+			GetUserByEmailError: errors.New("user not found"),
+		}
+		bookRepo := &mock.MockBookRepository{
+			MockBooks: []models.Book{
+				{ID: bookID, Status: "available"},
+			},
+		}
+		service := UserServices{
+			UserRepo: userRepo,
+			BookRepo: bookRepo,
+		}
+
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  email,
+		}
+
+		response, err := service.CheckOutBook(request)
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+		assert.Equal(t, "User not found: user not found", err.Error())
+	})
+
+	t.Run("book not found", func(t *testing.T) {
+		bookID := uuid.Must(uuid.NewV4())
+		email := "meenah20@gmail.com"
+
 		userRepo := &mock.MockUserRepo{
 			MockUser: []models.User{
-				{ID: userID, Name: "Aminat Usman", Email: "meenah20@gmail.com"},
+				{Email: email},
+			},
+		}
+		bookRepo := &mock.MockBookRepository{
+			GetBookByIDError: errors.New("book not found"),
+		}
+		service := UserServices{
+			UserRepo: userRepo,
+			BookRepo: bookRepo,
+		}
+
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  email,
+		}
+
+		response, err := service.CheckOutBook(request)
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+		assert.Equal(t, "Book not found: book not found", err.Error())
+	})
+
+	t.Run("book already borrowed", func(t *testing.T) {
+		bookID := uuid.Must(uuid.NewV4())
+		email := "meenah20@gmail.com"
+
+		userRepo := &mock.MockUserRepo{
+			MockUser: []models.User{
+				{Email: email},
 			},
 		}
 		bookRepo := &mock.MockBookRepository{
 			MockBooks: []models.Book{
-				{ID: bookID, Title: "Test Book", Status: "Available"},
+				{ID: bookID, Status: "borrowed"}, // Book is already borrowed
 			},
 		}
-		loanRepo := &mock.MockLoanRepository{}
-		service := UserServices{userRepo, loanRepo, bookRepo}
+		loanRepo := &mock.MockLoanRepository{
+			MockLoans: []models.Loan{
+				{BookID: bookID, Email: email, ReturnDate: nil},
+			},
+		}
+		service := UserServices{
+			UserRepo: userRepo,
+			BookRepo: bookRepo,
+			LoanRepo: loanRepo,
+		}
 
-		request := Dto.BookActionRequest{UserID: userID, BookID: bookID, UserName: "Aminat Agbaosi"}
-		action, err := service.CheckOutBook(request)
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  email,
+		}
+
+		response, err := service.CheckOutBook(request)
+
 		assert.Error(t, err)
-		assert.Nil(t, action)
-		assert.Equal(t, "Invalid User Name", err.Error())
+		assert.Nil(t, response)
+		assert.Equal(t, "Book is not available for checkout", err.Error())
 	})
-
 }
+
 func TestUserServices_ReturnBook(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		bookID, _ := uuid.NewV4()
-		userID, _ := uuid.NewV4()
-		loanID, _ := uuid.NewV4()
-		loanDate := time.Now().AddDate(0, 0, -7)
+		bookID := uuid.Must(uuid.NewV4())
+		email := "meenah20@gmail.com"
+		loanDate := time.Now().Add(-24 * time.Hour)
+
 		loanRepo := &mock.MockLoanRepository{
 			MockLoans: []models.Loan{
-				{ID: loanID, BookID: bookID, UserID: userID, LoanDate: loanDate, UserName: "Aminat Usman"},
-			},
-		}
-		userRepo := &mock.MockUserRepo{
-			MockUser: []models.User{
-				{ID: userID, Name: "Aminat Usman", Email: "meenah20@gmail.com"},
+				{
+					BookID:     bookID,
+					Email:      email,
+					LoanDate:   loanDate,
+					ReturnDate: nil,
+				},
 			},
 		}
 		bookRepo := &mock.MockBookRepository{
 			MockBooks: []models.Book{
-				{ID: bookID, Title: "Test Book", Status: "Available"},
+				{ID: bookID, Status: "borrowed"},
 			},
 		}
-		service := UserServices{userRepo, loanRepo, bookRepo}
-		request := Dto.BookActionRequest{UserID: userID, BookID: bookID, UserName: "Aminat Usman"}
-		action, err := service.ReturnBook(request)
+		service := UserServices{
+			LoanRepo: loanRepo,
+			BookRepo: bookRepo,
+		}
 
-		// Check for errors
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  email,
+		}
+
+		response, err := service.ReturnBook(request)
+
 		assert.NoError(t, err)
-		assert.NotNil(t, action)
+		assert.NotNil(t, response)
+		assert.Equal(t, "available", response.Status)
+		assert.NotNil(t, response.ReturnDate)
 
-		// Check the returned status and return date
-		assert.Equal(t, "Returned", action.Status)
-
-		// Ensure the ReturnDate is within a second of the current time
-		if action.ReturnDate != nil {
-			assert.WithinDuration(t, time.Now(), *action.ReturnDate, time.Second)
-		} else {
-			t.Errorf("Expected non-nil ReturnDate, got nil")
-		}
-
-		// Check the user name
-		assert.Equal(t, "Aminat Usman", action.UserName)
+		// Verify book status was updated
+		updatedBook, _ := bookRepo.GetBookByID(bookID)
+		assert.Equal(t, "available", updatedBook.Status)
 	})
-
-	t.Run("User Not Found", func(t *testing.T) {
-		bookID, _ := uuid.NewV4()
-		userID, _ := uuid.NewV4()
-		userRepo := &mock.MockUserRepo{
-			GetUserByIDError: errors.New("User Not Found"),
+	t.Run("invalid email", func(t *testing.T) {
+		bookID := uuid.Must(uuid.NewV4())
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  "invalid-email",
 		}
-		bookRepo := &mock.MockBookRepository{}
-		loanRepo := &mock.MockLoanRepository{}
-		service := UserServices{userRepo, loanRepo, bookRepo}
+		service := UserServices{}
 
-		request := Dto.BookActionRequest{UserID: userID, BookID: bookID, UserName: "Aminat Usman"}
-		action, err := service.ReturnBook(request)
+		response, err := service.ReturnBook(request)
+
 		assert.Error(t, err)
-		assert.Nil(t, action)
-		assert.Equal(t, "User Not Found or Name Doesn't Match", err.Error())
+		assert.Nil(t, response)
+		assert.Equal(t, "Invalid Email Address", err.Error())
 	})
 
-	t.Run("UserName Mismatch", func(t *testing.T) {
-		bookID, _ := uuid.NewV4()
-		userID, _ := uuid.NewV4()
-		loanID, _ := uuid.NewV4()
-		loanDate := time.Now().AddDate(0, 0, -7)
+	t.Run("no active loan found", func(t *testing.T) {
+		bookID := uuid.Must(uuid.NewV4())
+		email := "meenah20@gmail.com"
+
+		loanRepo := &mock.MockLoanRepository{
+			GetLoanByBookAndEmailError: errors.New("no loan found"),
+		}
+		service := UserServices{LoanRepo: loanRepo}
+
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  email,
+		}
+
+		response, err := service.ReturnBook(request)
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+		assert.Equal(t, "No active loan found for this book", err.Error())
+	})
+
+	t.Run("book already returned", func(t *testing.T) {
+		bookID := uuid.Must(uuid.NewV4())
+		email := "meenah20@gmail.com"
+		loanDate := time.Now().Add(-24 * time.Hour)
+		returnDate := time.Now()
+
 		loanRepo := &mock.MockLoanRepository{
 			MockLoans: []models.Loan{
-				{ID: loanID, BookID: bookID, UserID: userID, LoanDate: loanDate, UserName: "Aminat Usman"},
-			},
-		}
-		userRepo := &mock.MockUserRepo{
-			MockUser: []models.User{
-				{ID: userID, Name: "Aminat Usman", Email: "meenah20@gmail.com"},
+				{
+					ID:         uuid.Must(uuid.NewV4()),
+					BookID:     bookID,
+					Email:      email,
+					LoanDate:   loanDate,
+					ReturnDate: &returnDate,
+				},
 			},
 		}
 		bookRepo := &mock.MockBookRepository{
 			MockBooks: []models.Book{
-				{ID: bookID, Title: "Test Book", Author: "Test Author", Status: "Available"},
+				{ID: bookID, Status: "available"},
 			},
 		}
-		service := UserServices{userRepo, loanRepo, bookRepo}
-
-		request := Dto.BookActionRequest{UserID: userID, BookID: bookID, UserName: "Aminat Agbaosi"}
-		action, err := service.ReturnBook(request)
-		assert.Error(t, err)
-		assert.Nil(t, action)
-		assert.Equal(t, "User Not Found or Name Doesn't Match", err.Error())
-	})
-
-	t.Run("Loan Not Found", func(t *testing.T) {
-		bookID, _ := uuid.NewV4()
-		userID, _ := uuid.NewV4()
-		userRepo := &mock.MockUserRepo{
-			MockUser: []models.User{
-				{ID: userID, Name: "Aminat Usman", Email: "meenah20@gmail.com"},
-			},
+		service := UserServices{
+			LoanRepo: loanRepo,
+			BookRepo: bookRepo,
 		}
-		bookRepo := &mock.MockBookRepository{}
-		loanRepo := &mock.MockLoanRepository{
-			GetLoanByBookAndUserError: errors.New("Loan Not Found"),
-		}
-		service := UserServices{userRepo, loanRepo, bookRepo}
-		request := Dto.BookActionRequest{UserID: userID, BookID: bookID, UserName: "Aminat Usman"}
-		action, err := service.ReturnBook(request)
-		assert.Error(t, err)
-		assert.Nil(t, action)
-		assert.Equal(t, "Loan Record Not Found", err.Error())
 
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  email,
+		}
+
+		response, err := service.ReturnBook(request)
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+		assert.Equal(t, "No active loan found for this book", err.Error())
 	})
 }
 
 func TestUserServices_ReserveBook(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		bookID, _ := uuid.NewV4()
-		userID, _ := uuid.NewV4()
+		bookID := uuid.Must(uuid.NewV4())
+		userID := uuid.Must(uuid.NewV4())
+		email := "meenah20@gmail.com"
+
 		userRepo := &mock.MockUserRepo{
 			MockUser: []models.User{
-				{ID: userID, Name: "Aminat Usman", Email: "meenah20@gmail.com"},
+				{ID: userID, Email: email},
 			},
 		}
 		bookRepo := &mock.MockBookRepository{
 			MockBooks: []models.Book{
-				{ID: bookID, Title: "Test Book", Author: "Test Author", Status: "Available"},
+				{ID: bookID, Status: "available"},
 			},
 		}
-		service := UserServices{UserRepo: userRepo, BookRepo: bookRepo}
+		loanRepo := &mock.MockLoanRepository{
+			MockLoans: []models.Loan{},
+		}
+		service := UserServices{
+			UserRepo: userRepo,
+			BookRepo: bookRepo,
+			LoanRepo: loanRepo,
+		}
 
-		request := Dto.BookActionRequest{UserID: userID, BookID: bookID, UserName: "Aminat Usman"}
-		action, err := service.ReserveBook(request)
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  email,
+		}
+
+		response, err := service.ReserveBook(request)
+
 		assert.NoError(t, err)
-		assert.NotNil(t, action)
-		assert.Equal(t, "Reserved", action.Status)
-		assert.Equal(t, "Aminat Usman", action.UserName)
+		assert.NotNil(t, response)
+		assert.Equal(t, "reserved", response.Status)
+		assert.Equal(t, email, response.Email)
 	})
-	t.Run("User Not Found", func(t *testing.T) {
-		bookID, _ := uuid.NewV4()
-		userID, _ := uuid.NewV4()
-		userRepo := &mock.MockUserRepo{
-			GetUserByIDError: errors.New("User Not Found"),
+
+	t.Run("invalid email", func(t *testing.T) {
+		bookID := uuid.Must(uuid.NewV4())
+		service := UserServices{}
+
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  "invalid-email",
 		}
-		bookRepo := &mock.MockBookRepository{}
-		service := UserServices{UserRepo: userRepo, BookRepo: bookRepo}
-		request := Dto.BookActionRequest{UserID: userID, BookID: bookID, UserName: "Aminat Usman"}
-		action, err := service.ReturnBook(request)
+
+		response, err := service.ReserveBook(request)
+
 		assert.Error(t, err)
-		assert.Nil(t, action)
-		assert.Equal(t, "User Not Found or Name Doesn't Match", err.Error())
+		assert.Nil(t, response)
+		assert.Equal(t, "Invalid Email Address", err.Error())
 	})
-	t.Run("User Mismatch", func(t *testing.T) {
-		bookID, _ := uuid.NewV4()
-		userID, _ := uuid.NewV4()
+
+	t.Run("user not found", func(t *testing.T) {
+		bookID := uuid.Must(uuid.NewV4())
+		email := "nonexistent@example.com"
+
+		userRepo := &mock.MockUserRepo{
+			GetUserByEmailError: errors.New("user not found"),
+		}
+		bookRepo := &mock.MockBookRepository{
+			MockBooks: []models.Book{
+				{ID: bookID, Status: "available"},
+			},
+		}
+		service := UserServices{
+			UserRepo: userRepo,
+			BookRepo: bookRepo,
+		}
+
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  email,
+		}
+
+		response, err := service.ReserveBook(request)
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+		assert.Equal(t, "User not found: user not found", err.Error())
+	})
+
+	t.Run("book not found", func(t *testing.T) {
+		bookID := uuid.Must(uuid.NewV4())
+		email := "meenah20@gmail.com"
+
 		userRepo := &mock.MockUserRepo{
 			MockUser: []models.User{
-				{ID: userID, Name: "Aminat Usman", Email: "meenah20@gmail.com"},
+				{Email: email},
+			},
+		}
+		bookRepo := &mock.MockBookRepository{
+			GetBookByIDError: errors.New("book not found"),
+		}
+		service := UserServices{
+			UserRepo: userRepo,
+			BookRepo: bookRepo,
+		}
+
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  email,
+		}
+
+		response, err := service.ReserveBook(request)
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+		assert.Contains(t, err.Error(), "Book not found")
+	})
+
+	t.Run("book not available", func(t *testing.T) {
+		bookID := uuid.Must(uuid.NewV4())
+		email := "meenah20@gmail.com"
+
+		userRepo := &mock.MockUserRepo{
+			MockUser: []models.User{
+				{Email: email},
 			},
 		}
 		bookRepo := &mock.MockBookRepository{
 			MockBooks: []models.Book{
-				{ID: bookID, Title: "Test Book", Author: "Test Author", Status: "Available"},
+				{ID: bookID, Status: "borrowed"},
 			},
 		}
-		service := UserServices{UserRepo: userRepo, BookRepo: bookRepo}
+		service := UserServices{
+			UserRepo: userRepo,
+			BookRepo: bookRepo,
+		}
 
-		request := Dto.BookActionRequest{UserID: userID, BookID: bookID, UserName: "Aminat Agbaosi"}
-		action, err := service.ReturnBook(request)
+		request := Dto.BookActionRequest{
+			BookID: bookID,
+			Email:  email,
+		}
+
+		response, err := service.ReserveBook(request)
+
 		assert.Error(t, err)
-		assert.Nil(t, action)
-		assert.Equal(t, "User Not Found or Name Doesn't Match", err.Error())
+		assert.Nil(t, response)
+		assert.Equal(t, "Book is not available for reservation", err.Error())
 	})
-
-	t.Run("Book Not Avaliable", func(t *testing.T) {
-		bookID, _ := uuid.NewV4()
-		userID, _ := uuid.NewV4()
-		userRepo := &mock.MockUserRepo{
-			MockUser: []models.User{
-				{ID: userID, Name: "Aminat Usman", Email: "meenah20@gmail.com"},
-			},
-		}
-		bookRepo := &mock.MockBookRepository{
-			MockBooks: []models.Book{
-				{ID: bookID, Title: "Test Book", Author: "Test Author", Status: "borrowed"},
-			},
-		}
-		service := UserServices{UserRepo: userRepo, BookRepo: bookRepo}
-		request := Dto.BookActionRequest{UserID: userID, BookID: bookID, UserName: "Aminat Usman"}
-		action, err := service.ReserveBook(request)
-		assert.Error(t, err)
-		assert.Nil(t, action)
-		assert.Equal(t, "Book is not Available", err.Error())
-
-	})
-
 }

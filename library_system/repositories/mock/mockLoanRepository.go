@@ -7,10 +7,11 @@ import (
 )
 
 type MockLoanRepository struct {
-	MockLoans                 []models.Loan
-	AddLoanError              error
-	GetLoanByBookAndUserError error
-	UpdateLoanError           error
+	MockLoans                  []models.Loan
+	AddLoanError               error
+	GetLoanByBookAndUserError  error
+	UpdateLoanError            error
+	GetLoanByBookAndEmailError error
 }
 
 func (r *MockLoanRepository) AddLoan(loan *models.Loan) error {
@@ -21,7 +22,7 @@ func (r *MockLoanRepository) AddLoan(loan *models.Loan) error {
 	return nil
 }
 
-func (r *MockLoanRepository) GetLoanByBookAndUser(bookID, userID uuid.UUID) (*models.Loan, error) {
+func (r *MockLoanRepository) GetLoanByBookAndUser(bookID uuid.UUID, userID uuid.UUID) (*models.Loan, error) {
 	if r.GetLoanByBookAndUserError != nil {
 		return nil, r.GetLoanByBookAndUserError
 	}
@@ -44,4 +45,16 @@ func (r *MockLoanRepository) UpdateLoan(loan *models.Loan) error {
 		}
 	}
 	return errors.New("loan not found")
+}
+
+func (r *MockLoanRepository) GetLoanByBookAndEmail(bookID uuid.UUID, email string) (*models.Loan, error) {
+	if r.GetLoanByBookAndEmailError != nil {
+		return nil, r.GetLoanByBookAndEmailError
+	}
+	for _, loan := range r.MockLoans {
+		if loan.BookID == bookID && loan.Email == email && loan.ReturnDate == nil {
+			return &loan, nil
+		}
+	}
+	return nil, nil
 }

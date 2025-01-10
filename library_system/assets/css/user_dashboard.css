@@ -1,163 +1,148 @@
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f4f4f4;
     margin: 0;
     padding: 0;
+    color: #333;
 }
 
 .container {
     max-width: 800px;
-    margin: 50px auto;
+    margin: 30px auto;
     background: #fff;
-    padding: 20px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
 }
 
 h1, h2 {
-    color: #333;
-}
-
-form {
+    color: #2c3e50;
     margin-bottom: 20px;
 }
 
-form div {
-    margin-bottom: 10px;
+h1 {
+    text-align: center;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 15px;
+}
+
+.form-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+
+.form-group {
+    margin-bottom: 15px;
 }
 
 label {
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #2c3e50;
 }
 
-input[type="text"], input[type="email"], select {
+input[type="text"],
+input[type="email"],
+select {
     width: 100%;
-    padding: 8px;
-    box-sizing: border-box;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+select:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
 }
 
 button {
-    padding: 10px 15px;
+    width: 100%;
+    padding: 12px;
     background-color: #007bff;
-    color: #fff;
+    color: white;
     border: none;
+    border-radius: 6px;
+    font-size: 16px;
     cursor: pointer;
+    transition: background-color 0.3s ease;
 }
 
 button:hover {
     background-color: #0056b3;
 }
 
-#messages {
+.messages-container {
     margin-top: 20px;
 }
 
-#messages div {
-    padding: 10px;
+.messages-container div {
+    padding: 15px;
     margin-bottom: 10px;
+    border-radius: 6px;
+    font-weight: 500;
 }
 
-#messages .success {
+.success {
     background-color: #d4edda;
     color: #155724;
+    border: 1px solid #c3e6cb;
 }
 
-#messages .error {
+.error {
     background-color: #f8d7da;
     color: #721c24;
+    border: 1px solid #f5c6cb;
 }
 
 .book-list {
-    margin-top: 20px;
+    margin: 20px 0;
 }
 
 .book-item {
-    padding: 10px;
-    margin-bottom: 10px;
-    background-color: #f9f9f9;
-    border: 1px solid #ddd;
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
     border-radius: 8px;
+    transition: transform 0.2s ease;
+}
+
+.book-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.book-details {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    flex-direction: column;
+    gap: 5px;
 }
 
-.book-item strong {
-    font-size: 1.1em;
+.book-details h3 {
+    margin: 0;
+    color: #2c3e50;
 }
 
-.book-item button {
-    background-color: #ff4d4d;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 5px;
-    cursor: pointer;
+.book-details p {
+    margin: 5px 0;
+    color: #6c757d;
 }
 
-.book-item button:hover {
-    background-color: #ff2d2d;
-}
-
-/* Media Queries for Responsiveness */
-
-/* Small Screens (Mobile) */
-@media (max-width: 600px) {
-    .container {
-        width: 95%;
-        padding: 15px;
-    }
-
-    form div {
-        margin-bottom: 15px;
-    }
-
-    input[type="text"], input[type="email"], select, button {
-        width: 100%;
-        margin-bottom: 10px;
-    }
-
-    .book-item {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .book-item button {
-        margin-top: 10px;
-        width: 100%;
-    }
-}
-
-/* Medium Screens (Tablets) */
 @media (max-width: 768px) {
     .container {
-        width: 90%;
+        margin: 15px;
+        padding: 20px;
     }
 
-    .book-item {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .book-item button {
-        margin-top: 10px;
-        width: 100%;
-    }
-}
-
-/* Large Screens (Desktops) */
-@media (min-width: 1024px) {
-    .container {
-        width: 80%;
-    }
-
-    form div {
-        display: flex;
-        justify-content: space-between;
-    }
-
-    label, input[type="text"], input[type="email"], select, button {
-        width: 48%;
+    .form-section {
+        padding: 15px;
     }
 }

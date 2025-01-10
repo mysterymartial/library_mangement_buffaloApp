@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Dashboard</title>
+    <title>Library User Dashboard</title>
     <link rel="stylesheet" href="../../assets/css/user_dashboard.css">
     <link rel="stylesheet" href="../../assets/css/base.css">
     <link rel="stylesheet" href="../../assets/css/reponsive.css">
@@ -13,14 +13,14 @@
     <h1>Library User Dashboard</h1>
 
     <h2>Register User</h2>
-    <form id="register-form">
-        <div>
+    <form id="register-form" class="form-section">
+        <div class="form-group">
             <label for="name">Name:</label>
-            <input type="text" id="name" name="name" required>
+            <input type="text" id="name" name="name" required placeholder="Enter your full name">
         </div>
-        <div>
+        <div class="form-group">
             <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required>
+            <input type="email" id="email" name="email" required placeholder="Enter your email">
         </div>
         <button type="submit">Register</button>
     </form>
@@ -31,45 +31,51 @@
     </div>
 
     <h2>Checkout Book</h2>
-    <form id="checkout-form">
-        <div>
+    <form id="checkout-form" class="form-section">
+        <div class="form-group">
             <label for="checkout-title">Book Title:</label>
-            <select id="checkout-title" name="title" required></select>
+            <select id="checkout-title" name="title" required>
+                <option value="">Select a book</option>
+            </select>
         </div>
-        <div>
-            <label for="checkout-username">Username:</label>
-            <input type="text" id="checkout-username" name="username" required>
+        <div class="form-group">
+            <label for="checkout-email">Email:</label>
+            <input type="email" id="checkout-email" name="email" required placeholder="Enter your email">
         </div>
         <button type="submit">Checkout Book</button>
     </form>
 
     <h2>Return Book</h2>
-    <form id="return-form">
-        <div>
+    <form id="return-form" class="form-section">
+        <div class="form-group">
             <label for="return-title">Book Title:</label>
-            <select id="return-title" name="title" required></select>
+            <select id="return-title" name="title" required>
+                <option value="">Select a book</option>
+            </select>
         </div>
-        <div>
-            <label for="return-username">Username:</label>
-            <input type="text" id="return-username" name="username" required>
+        <div class="form-group">
+            <label for="return-email">Email:</label>
+            <input type="email" id="return-email" name="email" required placeholder="Enter your email">
         </div>
         <button type="submit">Return Book</button>
     </form>
 
     <h2>Reserve Book</h2>
-    <form id="reserve-form">
-        <div>
+    <form id="reserve-form" class="form-section">
+        <div class="form-group">
             <label for="reserve-title">Book Title:</label>
-            <select id="reserve-title" name="title" required></select>
+            <select id="reserve-title" name="title" required>
+                <option value="">Select a book</option>
+            </select>
         </div>
-        <div>
-            <label for="reserve-username">Username:</label>
-            <input type="text" id="reserve-username" name="username" required>
+        <div class="form-group">
+            <label for="reserve-email">Email:</label>
+            <input type="email" id="reserve-email" name="email" required placeholder="Enter your email">
         </div>
         <button type="submit">Reserve Book</button>
     </form>
 
-    <div id="messages"></div>
+    <div id="messages" class="messages-container"></div>
 </div>
 
 <script src="../../assets/js/userDashboard.js"></script>

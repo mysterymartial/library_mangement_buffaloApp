@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/gofrs/uuid"
 	"library-system/Dto"
-	"library-system/mapper"
 	"library-system/models"
 	"library-system/repositories/repository"
 	"log"
@@ -21,14 +20,12 @@ type UserServices struct {
 }
 
 func (s *UserServices) RegisterUser(request Dto.UserRequest) (*Dto.UserResponse, error) {
-
 	normalizedName := normalizeName(request.Name)
 	if !isNameValid(normalizedName) {
 		return nil, errors.New("Invalid Name")
 	}
 
 	normalizedEmail := normalizeEmail(request.Email)
-
 	if !isValidEmail(normalizedEmail) {
 		return nil, errors.New("Invalid Email Address")
 	}
@@ -59,45 +56,39 @@ func (s *UserServices) RegisterUser(request Dto.UserRequest) (*Dto.UserResponse,
 }
 
 func (s *UserServices) CheckOutBook(request Dto.BookActionRequest) (*Dto.BookActionResponse, error) {
-	log.Printf("Starting checkout process for book ID: %v by user ID: %v", request.BookID, request.UserID)
+	log.Printf("Starting checkout process for book ID: %v by email: %v", request.BookID, request.Email)
 
-	user, err := s.UserRepo.GetUserByID(request.UserID)
-	if err != nil {
-		log.Printf("Error fetching user with ID %v: %v", request.UserID, err)
-		return nil, errors.New("User not found")
+	normalizedEmail := normalizeEmail(request.Email)
+	if !isValidEmail(normalizedEmail) {
+		return nil, errors.New("Invalid Email Address")
 	}
 
-	log.Printf("Fetched user: %v", user)
-
-	if normalizeName(user.Name) != normalizeName(request.UserName) {
-		log.Printf("User name mismatch: %v != %v", user.Name, request.UserName)
-		return nil, errors.New("Invalid User Name")
+	user, err := s.UserRepo.GetUserByEmail(normalizedEmail)
+	if err != nil {
+		return nil, fmt.Errorf("User not found: %v", err)
 	}
 
 	book, err := s.BookRepo.GetBookByID(request.BookID)
 	if err != nil {
-		log.Printf("Error fetching book with ID %v: %v", request.BookID, err)
-		return nil, errors.New("Book not found")
+		return nil, fmt.Errorf("Book not found: %v", err)
 	}
 
-	log.Printf("Fetched book: %v", book)
+	if strings.ToLower(book.Status) != "available" {
+		log.Printf("Book is currently %s", book.Status)
+		return nil, fmt.Errorf("Book is not available for checkout")
+	}
 
-	existingLoan, err := s.LoanRepo.GetLoanByBookAndUser(request.BookID, request.UserID)
+	existingLoan, err := s.LoanRepo.GetLoanByBookAndEmail(request.BookID, normalizedEmail)
 	if err == nil && existingLoan != nil && existingLoan.ReturnDate == nil {
 		return nil, errors.New("You have already borrowed this book")
-	}
-
-	if book.Status != "available" {
-		log.Printf("Book with ID %v is not available. Current status: %v", request.BookID, book.Status)
-		return nil, fmt.Errorf("Book is currently %s and cannot be checked out", book.Status)
 	}
 
 	now := time.Now()
 	loan := &models.Loan{
 		ID:         uuid.Must(uuid.NewV4()),
 		BookID:     request.BookID,
-		UserID:     request.UserID,
-		UserName:   request.UserName,
+		Email:      normalizedEmail,
+		UserID:     user.ID,
 		LoanDate:   now,
 		ReturnDate: nil,
 		CreatedAt:  now,
@@ -105,104 +96,133 @@ func (s *UserServices) CheckOutBook(request Dto.BookActionRequest) (*Dto.BookAct
 	}
 
 	book.Status = "borrowed"
-	book.UpdatedAt = now
 	if err := s.BookRepo.UpdateBook(book); err != nil {
-		log.Printf("Error updating book status for book ID %v: %v", request.BookID, err)
+		log.Printf("Failed to update book status: %v", err)
 		return nil, fmt.Errorf("Failed to update book status: %v", err)
 	}
 
 	if err := s.LoanRepo.AddLoan(loan); err != nil {
-
 		book.Status = "available"
 		_ = s.BookRepo.UpdateBook(book)
-		log.Printf("Error adding loan record for book ID %v: %v", request.BookID, err)
-		return nil, fmt.Errorf("Failed to create loan record: %v", err)
+		return nil, fmt.Errorf("Failed to create loan: %v", err)
 	}
 
-	log.Printf("Successfully created loan: %v", loan)
-	return mapper.ToBookActionResponse(loan, "borrowed"), nil
+	return &Dto.BookActionResponse{
+		ID:       loan.ID,
+		UserID:   user.ID,
+		BookID:   loan.BookID,
+		Email:    loan.Email,
+		Status:   "borrowed",
+		LoanDate: loan.LoanDate,
+	}, nil
 }
 
-func (s *UserServices) ReserveBook(request Dto.BookActionRequest) (*Dto.BookActionResponse, error) {
-	log.Printf("Starting reservation process for book ID: %v by user ID: %v", request.BookID, request.UserID)
-	// Fetch the user and validate using normalized name
-	user, err := s.UserRepo.GetUserByID(request.UserID)
-	if err != nil || normalizeName(user.Name) != normalizeName(request.UserName) {
-		log.Printf("User validation failed for user ID %v: %v", request.UserID, err)
-		return nil, errors.New("User Not Found or Name Doesn't Match")
-	}
-
-	book, err := s.BookRepo.GetBookByID(request.BookID)
-	if err != nil {
-		log.Printf("Error fetching book with ID %v: %v", request.BookID, err)
-		return nil, err
-	}
-
-	if !isStatusAvailable(book.Status) {
-		log.Printf("Book with ID %v is not available. Status: %v", request.BookID, book.Status)
-		return nil, errors.New("Book is not Available")
-	}
-
-	book.Status = "Reserved"
-	if err := s.BookRepo.UpdateBook(book); err != nil {
-		log.Printf("Error updating book status for book ID %v: %v", request.BookID, err)
-		return nil, err
-	}
-
-	return mapper.ToBookActionResponse(&models.Loan{
-		BookID:   request.BookID,
-		UserID:   request.UserID,
-		UserName: request.UserName,
-	}, "Reserved"), nil
-}
 func (s *UserServices) ReturnBook(request Dto.BookActionRequest) (*Dto.BookActionResponse, error) {
-	log.Printf("Starting return process for book ID: %v by user ID: %v", request.BookID, request.UserID)
+	log.Printf("Starting return process for book ID: %v by email: %v", request.BookID, request.Email)
 
-	user, err := s.UserRepo.GetUserByID(request.UserID)
-	if err != nil || normalizeName(user.Name) != normalizeName(request.UserName) {
-		log.Printf("User validation failed for user ID %v: %v", request.UserID, err)
-		return nil, errors.New("User Not Found or Name Doesn't Match")
+	normalizedEmail := normalizeEmail(request.Email)
+	if !isValidEmail(normalizedEmail) {
+		return nil, errors.New("Invalid Email Address")
 	}
 
-	book, err := s.BookRepo.GetBookByID(request.BookID)
-	if err != nil {
-		log.Printf("Error fetching book with ID %v: %v", request.BookID, err)
-		return nil, err
-	}
-
-	loan, err := s.LoanRepo.GetLoanByBookAndUser(request.BookID, request.UserID)
-	if err != nil {
-		log.Printf("Loan record not found for book ID %v and user ID %v: %v", request.BookID, request.UserID, err)
-		return nil, errors.New("Loan Record Not Found")
+	loan, err := s.LoanRepo.GetLoanByBookAndEmail(request.BookID, normalizedEmail)
+	if err != nil || loan == nil {
+		return nil, errors.New("No active loan found for this book")
 	}
 
 	if loan.ReturnDate != nil {
-		log.Printf("Book with ID %v has already been returned", request.BookID)
 		return nil, errors.New("Book has already been returned")
 	}
 
-	loan.ReturnDate = new(time.Time)
-	*loan.ReturnDate = time.Now()
-
-	if err := s.LoanRepo.UpdateLoan(loan); err != nil {
-		log.Printf("Error updating loan record for book ID %v: %v", request.BookID, err)
-		return nil, err
+	book, err := s.BookRepo.GetBookByID(request.BookID)
+	if err != nil {
+		return nil, fmt.Errorf("Book not found: %v", err)
 	}
 
-	// Update the book status to "available"
+	now := time.Now()
+	loan.ReturnDate = &now
+	loan.UpdatedAt = now
+
 	book.Status = "available"
 	if err := s.BookRepo.UpdateBook(book); err != nil {
-		log.Printf("Error updating book status for book ID %v: %v", request.BookID, err)
-		return nil, err
+		return nil, fmt.Errorf("Failed to update book status: %v", err)
 	}
 
-	return mapper.ToBookActionResponse(loan, "Returned"), nil
+	if err := s.LoanRepo.UpdateLoan(loan); err != nil {
+		book.Status = "borrowed"
+		_ = s.BookRepo.UpdateBook(book)
+		return nil, fmt.Errorf("Failed to update loan: %v", err)
+	}
+
+	return &Dto.BookActionResponse{
+		ID:         loan.ID,
+		BookID:     loan.BookID,
+		Email:      loan.Email,
+		Status:     "available",
+		LoanDate:   loan.LoanDate,
+		ReturnDate: loan.ReturnDate,
+	}, nil
 }
 
+func (s *UserServices) ReserveBook(request Dto.BookActionRequest) (*Dto.BookActionResponse, error) {
+	log.Printf("Starting reservation process for book ID: %v by email: %v", request.BookID, request.Email)
+
+	normalizedEmail := normalizeEmail(request.Email)
+	if !isValidEmail(normalizedEmail) {
+		return nil, errors.New("Invalid Email Address")
+	}
+
+	user, err := s.UserRepo.GetUserByEmail(normalizedEmail)
+	if err != nil {
+		return nil, fmt.Errorf("User not found: %v", err)
+	}
+
+	book, err := s.BookRepo.GetBookByID(request.BookID)
+	if err != nil {
+		return nil, fmt.Errorf("Book not found: %v", err)
+	}
+
+	if strings.ToLower(book.Status) != "available" {
+		return nil, errors.New("Book is not available for reservation")
+	}
+
+	now := time.Now()
+	loan := &models.Loan{
+		ID:        uuid.Must(uuid.NewV4()),
+		BookID:    request.BookID,
+		Email:     normalizedEmail,
+		UserID:    user.ID,
+		LoanDate:  now,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	book.Status = "reserved"
+	if err := s.BookRepo.UpdateBook(book); err != nil {
+		return nil, fmt.Errorf("Failed to update book status: %v", err)
+	}
+
+	if err := s.LoanRepo.AddLoan(loan); err != nil {
+		book.Status = "available"
+		_ = s.BookRepo.UpdateBook(book)
+		return nil, fmt.Errorf("Failed to create reservation: %v", err)
+	}
+
+	return &Dto.BookActionResponse{
+		ID:       loan.ID,
+		UserID:   user.ID,
+		BookID:   loan.BookID,
+		Email:    loan.Email,
+		Status:   "reserved",
+		LoanDate: loan.LoanDate,
+	}, nil
+}
+
+// Helper functions
+
 func isValidEmail(email string) bool {
-	const emailRegex = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
-	regex := regexp.MustCompile(emailRegex)
-	return regex.MatchString(email)
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	return emailRegex.MatchString(email)
 }
 
 func isNameValid(name string) bool {
@@ -219,11 +239,11 @@ func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
-func isStatusAvailable(status string) bool {
-	return normalizeStatus(status) == "available"
-}
+//func isStatusAvailable(status string) bool {
+//	return normalizeStatus(status) == "available"
+//}
 
 func normalizeStatus(status string) string {
-	// Trim spaces and handle potential unexpected characters
+
 	return strings.ToLower(strings.TrimSpace(status))
 }

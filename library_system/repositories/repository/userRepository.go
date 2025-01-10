@@ -31,7 +31,6 @@ func NewUserRepository(db *pop.Connection) *UserRepositoryImpl {
 
 func (r *UserRepositoryImpl) AddUser(user *models.User) error {
 	return r.DB.Transaction(func(tx *pop.Connection) error {
-		// Check if email already exists
 		existingUser := &models.User{}
 		err := tx.Where("email = ?", user.Email).First(existingUser)
 		if err == nil {
@@ -57,13 +56,17 @@ func (r *UserRepositoryImpl) GetUserByID(ID uuid.UUID) (*models.User, error) {
 }
 
 func (r *UserRepositoryImpl) GetUserByEmail(email string) (*models.User, error) {
+	log.Printf("Querying user by email: %s", email)
 	user := &models.User{}
 	err := r.DB.Where("email = ?", email).First(user)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			log.Printf("No user found with email: %s", email)
 			return nil, nil
 		}
+		log.Printf("Error querying user by email: %v", err)
 		return nil, err
 	}
+	log.Printf("User found: %v", user)
 	return user, nil
 }

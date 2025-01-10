@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Add smooth hover effects for buttons
     const buttons = document.querySelectorAll('.main-btn');
 
     buttons.forEach(button => {

@@ -6,6 +6,8 @@ import (
 	"library-system/Dto"
 	"library-system/models"
 	"library-system/repositories/repository"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -20,12 +22,20 @@ func NewBookServices(bookRepo repository.BookRepository) *BookServices {
 }
 
 func (s *BookServices) AddBook(req Dto.BookRequest) (*Dto.BookResponse, error) {
-	existingBook, err := s.BookRepo.GetBookByISBN(req.ISBN)
-	if err != nil {
-		return nil, fmt.Errorf("error checking ISBN: %w", err)
-	}
-	if existingBook != nil {
-		return nil, fmt.Errorf("duplicate ISBN: book with ISBN %s already exists", req.ISBN)
+	if strings.TrimSpace(req.ISBN) != "" {
+		if !isValidISBN(req.ISBN) {
+			return nil, fmt.Errorf("invalid ISBN format")
+		}
+
+		existingBook, err := s.BookRepo.GetBookByISBN(req.ISBN)
+		if err != nil {
+			if !strings.Contains(err.Error(), "not found") {
+				return nil, fmt.Errorf("error checking ISBN: %w", err)
+			}
+		}
+		if existingBook != nil {
+			return nil, fmt.Errorf("duplicate ISBN: book with ISBN %s already exists", req.ISBN)
+		}
 	}
 
 	book := &models.Book{
@@ -49,46 +59,6 @@ func (s *BookServices) AddBook(req Dto.BookRequest) (*Dto.BookResponse, error) {
 	return mapBookToResponse(book), nil
 }
 
-func (s *BookServices) UpdateBook(request Dto.BookRequest) (*Dto.BookResponse, error) {
-	bookID, err := uuid.FromString(request.ID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid book ID format: %w", err)
-	}
-
-	existingBook, err := s.BookRepo.GetBookByISBN(request.ISBN)
-	if err != nil {
-		return nil, fmt.Errorf("error checking ISBN: %w", err)
-	}
-	if existingBook != nil && existingBook.ID != bookID {
-		return nil, fmt.Errorf("duplicate ISBN: book with ISBN %s already exists", request.ISBN)
-	}
-
-	currentBook, err := s.BookRepo.GetBookByID(bookID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find book: %w", err)
-	}
-
-	updatedBook := &models.Book{
-		ID:        bookID,
-		Title:     request.Title,
-		Author:    request.Author,
-		ISBN:      request.ISBN,
-		Status:    request.Status,
-		CreatedAt: currentBook.CreatedAt,
-		UpdatedAt: time.Now(),
-	}
-
-	if err := updatedBook.Validate(); err != nil {
-		return nil, fmt.Errorf("validation error: %w", err)
-	}
-
-	if err := s.BookRepo.UpdateBook(updatedBook); err != nil {
-		return nil, fmt.Errorf("failed to update book: %w", err)
-	}
-
-	return mapBookToResponse(updatedBook), nil
-}
-
 func (s *BookServices) RemoveBook(bookID uuid.UUID) (*Dto.BookResponse, error) {
 	book, err := s.BookRepo.GetBookByID(bookID)
 	if err != nil {
@@ -102,17 +72,34 @@ func (s *BookServices) RemoveBook(bookID uuid.UUID) (*Dto.BookResponse, error) {
 	return mapBookToResponse(book), nil
 }
 
-func (s *BookServices) GetBookByID(bookID uuid.UUID) (*Dto.BookResponse, error) {
-	if bookID == uuid.Nil {
-		return nil, fmt.Errorf("invalid book ID")
-	}
+func (s *BookServices) UpdateBookByISBN(request Dto.BookRequest) (*Dto.BookResponse, error) {
 
-	book, err := s.BookRepo.GetBookByID(bookID)
+	existingBook, err := s.BookRepo.GetBookByISBN(request.ISBN)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get book: %w", err)
+		return nil, fmt.Errorf("book with ISBN %s not found", request.ISBN)
 	}
 
-	return mapBookToResponse(book), nil
+	if existingBook == nil {
+		return nil, fmt.Errorf("book with ISBN %s not found", request.ISBN)
+	}
+
+	if existingBook.ISBN != request.ISBN {
+		return nil, fmt.Errorf("cannot update ISBN")
+	}
+	existingBook.Title = request.Title
+	existingBook.Author = request.Author
+	existingBook.Status = request.Status
+	existingBook.UpdatedAt = time.Now()
+
+	if err := existingBook.Validate(); err != nil {
+		return nil, fmt.Errorf("validation error: %w", err)
+	}
+
+	if err := s.BookRepo.UpdateBook(existingBook); err != nil {
+		return nil, fmt.Errorf("failed to update book: %w", err)
+	}
+
+	return mapBookToResponse(existingBook), nil
 }
 
 func (s *BookServices) SearchBook(query string) ([]Dto.BookResponse, error) {
@@ -150,6 +137,7 @@ func mapBooksToResponses(books []*models.Book) []Dto.BookResponse {
 	}
 	return responses
 }
+
 func (s *BookServices) GetAllBooks() ([]Dto.BookResponse, error) {
 	books, err := s.BookRepo.GetAllBooks()
 	if err != nil {
@@ -157,4 +145,20 @@ func (s *BookServices) GetAllBooks() ([]Dto.BookResponse, error) {
 	}
 
 	return mapBooksToResponses(books), nil
+}
+
+func (s *BookServices) GetBookByID(bookID uuid.UUID) (*Dto.BookResponse, error) {
+	book, err := s.BookRepo.GetBookByID(bookID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find book: %w", err)
+	}
+
+	return mapBookToResponse(book), nil
+}
+
+func isValidISBN(isbn string) bool {
+	isbn = strings.ReplaceAll(isbn, "-", "")
+	isbn10Regex := regexp.MustCompile(`^\d{9}[\dXx]$`)
+	isbn13Regex := regexp.MustCompile(`^\d{13}$`)
+	return isbn10Regex.MatchString(isbn) || isbn13Regex.MatchString(isbn)
 }

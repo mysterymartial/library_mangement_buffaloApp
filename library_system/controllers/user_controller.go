@@ -1,13 +1,12 @@
 package controllers
 
 import (
-	"fmt"
 	"github.com/gobuffalo/buffalo"
 	"github.com/gobuffalo/buffalo/render"
-	"github.com/gofrs/uuid"
 	"github.com/gorilla/sessions"
 	"library-system/Dto"
 	"library-system/services"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -37,9 +36,10 @@ func (uc *UserController) RegisterUser(c buffalo.Context) error {
 		}))
 	}
 
+	request.Email = normalizeEmail(request.Email)
 	user, err := uc.UserService.RegisterUser(request)
 	if err != nil {
-		if err.Error() == "email already exists" {
+		if err.Error() == "email already registered" {
 			return c.Render(http.StatusConflict, render.JSON(map[string]string{
 				"error": "Email already registered",
 			}))
@@ -50,7 +50,7 @@ func (uc *UserController) RegisterUser(c buffalo.Context) error {
 	}
 
 	session := c.Session()
-	session.Set("current_user_id", user.ID.String())
+	session.Set(userIDKey, user.ID.String())
 	session.Save()
 
 	return c.Render(http.StatusOK, render.JSON(map[string]interface{}{
@@ -60,16 +60,6 @@ func (uc *UserController) RegisterUser(c buffalo.Context) error {
 }
 
 func (uc *UserController) CheckoutBook(c buffalo.Context) error {
-
-	session := c.Session()
-	userIDStr := session.Get("current_user_id")
-
-	if userIDStr == nil {
-		return c.Render(http.StatusUnauthorized, render.JSON(map[string]string{
-			"error": "Authentication required",
-		}))
-	}
-
 	var request Dto.BookActionRequest
 	if err := c.Bind(&request); err != nil {
 		return c.Render(http.StatusBadRequest, render.JSON(map[string]string{
@@ -77,29 +67,17 @@ func (uc *UserController) CheckoutBook(c buffalo.Context) error {
 		}))
 	}
 
-	if request.BookID == uuid.Nil {
-		return c.Render(http.StatusBadRequest, render.JSON(map[string]string{
-			"error": "Invalid book ID",
-		}))
-	}
+	request.Email = normalizeEmail(request.Email)
+	log.Printf("Processing checkout - Book ID: %s, Email: %s", request.BookID, request.Email)
 
-	if strings.TrimSpace(request.UserName) == "" {
-		return c.Render(http.StatusBadRequest, render.JSON(map[string]string{
-			"error": "User name is required",
-		}))
-	}
-
-	userID, err := uuid.FromString(userIDStr.(string))
-	if err != nil {
-		return c.Render(http.StatusUnauthorized, render.JSON(map[string]string{
-			"error": "Invalid session",
-		}))
-	}
-
-	request.UserID = userID
 	response, err := uc.UserService.CheckOutBook(request)
 	if err != nil {
-		return c.Render(http.StatusBadRequest, render.JSON(map[string]string{
+		log.Printf("Checkout failed: %v", err)
+		statusCode := http.StatusBadRequest
+		if strings.Contains(err.Error(), "not available") {
+			statusCode = http.StatusConflict
+		}
+		return c.Render(statusCode, render.JSON(map[string]string{
 			"error": err.Error(),
 		}))
 	}
@@ -110,43 +88,7 @@ func (uc *UserController) CheckoutBook(c buffalo.Context) error {
 	}))
 }
 
-func (uc *UserController) ReserveBook(c buffalo.Context) error {
-	currentUserID, err := uc.getUserIDFromSession(c)
-	if err != nil {
-		return c.Render(http.StatusUnauthorized, render.JSON(map[string]string{
-			"error": "Authentication required",
-		}))
-	}
-
-	var request Dto.BookActionRequest
-	if err := c.Bind(&request); err != nil {
-		return c.Render(http.StatusBadRequest, render.JSON(map[string]string{
-			"error": "Invalid request format",
-		}))
-	}
-
-	request.UserID = currentUserID
-	action, err := uc.UserService.ReserveBook(request)
-	if err != nil {
-		return c.Render(http.StatusBadRequest, render.JSON(map[string]string{
-			"error": err.Error(),
-		}))
-	}
-
-	return c.Render(http.StatusOK, render.JSON(map[string]interface{}{
-		"status":      "success",
-		"reservation": action,
-	}))
-}
-
 func (uc *UserController) ReturnBook(c buffalo.Context) error {
-	currentUserID, err := uc.getUserIDFromSession(c)
-	if err != nil {
-		return c.Render(http.StatusUnauthorized, render.JSON(map[string]string{
-			"error": "Authentication required",
-		}))
-	}
-
 	var request Dto.BookActionRequest
 	if err := c.Bind(&request); err != nil {
 		return c.Render(http.StatusBadRequest, render.JSON(map[string]string{
@@ -154,41 +96,56 @@ func (uc *UserController) ReturnBook(c buffalo.Context) error {
 		}))
 	}
 
-	if request.BookID == uuid.Nil {
-		return c.Render(http.StatusBadRequest, render.JSON(map[string]string{
-			"error": "Invalid book ID",
-		}))
-	}
+	request.Email = normalizeEmail(request.Email)
+	log.Printf("Processing return - Book ID: %s, Email: %s", request.BookID, request.Email)
 
-	request.UserID = currentUserID
-	action, err := uc.UserService.ReturnBook(request)
+	response, err := uc.UserService.ReturnBook(request)
 	if err != nil {
-		return c.Render(http.StatusBadRequest, render.JSON(map[string]string{
+		log.Printf("Return failed: %v", err)
+		statusCode := http.StatusBadRequest
+		if strings.Contains(err.Error(), "No active loan found") {
+			statusCode = http.StatusNotFound
+		}
+		return c.Render(statusCode, render.JSON(map[string]string{
 			"error": err.Error(),
 		}))
 	}
 
 	return c.Render(http.StatusOK, render.JSON(map[string]interface{}{
 		"status": "success",
-		"return": action,
+		"return": response,
 	}))
 }
 
-func (uc *UserController) getUserIDFromSession(c buffalo.Context) (uuid.UUID, error) {
-	session, err := uc.SessionStore.Get(c.Request(), sessionName)
+func (uc *UserController) ReserveBook(c buffalo.Context) error {
+	var request Dto.BookActionRequest
+	if err := c.Bind(&request); err != nil {
+		return c.Render(http.StatusBadRequest, render.JSON(map[string]string{
+			"error": "Invalid request format",
+		}))
+	}
+
+	request.Email = normalizeEmail(request.Email)
+	log.Printf("Processing reservation - Book ID: %s, Email: %s", request.BookID, request.Email)
+
+	response, err := uc.UserService.ReserveBook(request)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("session retrieval failed")
+		log.Printf("Reservation failed: %v", err)
+		statusCode := http.StatusBadRequest
+		if strings.Contains(err.Error(), "not available") {
+			statusCode = http.StatusConflict
+		}
+		return c.Render(statusCode, render.JSON(map[string]string{
+			"error": err.Error(),
+		}))
 	}
 
-	userIDStr, ok := session.Values[userIDKey].(string)
-	if !ok || userIDStr == "" {
-		return uuid.Nil, fmt.Errorf("user not authenticated")
-	}
+	return c.Render(http.StatusOK, render.JSON(map[string]interface{}{
+		"status":      "success",
+		"reservation": response,
+	}))
+}
 
-	userID, err := uuid.FromString(userIDStr)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("invalid user ID format")
-	}
-
-	return userID, nil
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
 }

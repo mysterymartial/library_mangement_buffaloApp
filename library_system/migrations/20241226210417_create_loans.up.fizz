@@ -1,11 +1,11 @@
 create_table("loans") {
   t.Column("id", "uuid", {primary: true})
   t.Column("book_id", "uuid", {})
+  t.Column("email", "string", {})
   t.Column("user_id", "uuid", {})
   t.Column("loan_date", "timestamp", {})
   t.Column("return_date", "timestamp", {null: true})
-  t.Column("user_name", "string", {})
   t.ForeignKey("book_id", {"books": ["id"]}, {"on_delete": "cascade"})
   t.ForeignKey("user_id", {"users": ["id"]}, {"on_delete": "cascade"})
-  t.Index(["book_id", "user_id"], {})
+  t.Index(["book_id", "email"], {})
 }

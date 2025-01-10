@@ -1,9 +1,11 @@
 package mock
 
 import (
+	"fmt"
+	"sync"
+
 	"github.com/gofrs/uuid"
 	"library-system/models"
-	"sync"
 )
 
 type MockBookRepository struct {
@@ -31,6 +33,7 @@ func (r *MockBookRepository) AddBook(book *models.Book) error {
 	if r.AddBookError != nil {
 		return r.AddBookError
 	}
+
 	r.MockBooks = append(r.MockBooks, *book)
 	return nil
 }
@@ -42,13 +45,14 @@ func (r *MockBookRepository) RemoveBook(bookID uuid.UUID) error {
 	if r.RemoveBookError != nil {
 		return r.RemoveBookError
 	}
+
 	for i, book := range r.MockBooks {
 		if bookID == book.ID {
 			r.MockBooks = append(r.MockBooks[:i], r.MockBooks[i+1:]...)
 			return nil
 		}
 	}
-	return nil
+	return fmt.Errorf("book not found")
 }
 
 func (r *MockBookRepository) GetBookByID(bookID uuid.UUID) (*models.Book, error) {
@@ -58,12 +62,14 @@ func (r *MockBookRepository) GetBookByID(bookID uuid.UUID) (*models.Book, error)
 	if r.GetBookByIDError != nil {
 		return nil, r.GetBookByIDError
 	}
+
 	for _, book := range r.MockBooks {
 		if book.ID == bookID {
-			return &book, nil
+			bookCopy := book
+			return &bookCopy, nil
 		}
 	}
-	return nil, nil
+	return nil, fmt.Errorf("book not found")
 }
 
 func (r *MockBookRepository) UpdateBook(book *models.Book) error {
@@ -73,13 +79,14 @@ func (r *MockBookRepository) UpdateBook(book *models.Book) error {
 	if r.UpdateBookError != nil {
 		return r.UpdateBookError
 	}
-	for i, b := range r.MockBooks {
-		if book.ID == b.ID {
+
+	for i, existingBook := range r.MockBooks {
+		if existingBook.ID == book.ID {
 			r.MockBooks[i] = *book
 			return nil
 		}
 	}
-	return nil
+	return fmt.Errorf("book not found")
 }
 
 func (r *MockBookRepository) SearchBook(query string) ([]*models.Book, error) {
@@ -89,6 +96,7 @@ func (r *MockBookRepository) SearchBook(query string) ([]*models.Book, error) {
 	if r.SearchBookError != nil {
 		return nil, r.SearchBookError
 	}
+
 	var results []*models.Book
 	for _, book := range r.MockBooks {
 		if book.Title == query || book.Author == query || book.ISBN == query {
@@ -109,7 +117,8 @@ func (r *MockBookRepository) GetBookByISBN(isbn string) (*models.Book, error) {
 
 	for _, book := range r.MockBooks {
 		if book.ISBN == isbn {
-			return &book, nil
+			bookCopy := book
+			return &bookCopy, nil
 		}
 	}
 	return nil, nil

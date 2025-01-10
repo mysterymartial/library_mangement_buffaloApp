@@ -10,7 +10,6 @@ import (
 
 const sessionName = "_library_session"
 
-// SetCurrentUser middleware - used to set current user from session
 func SetCurrentUser(next buffalo.Handler) buffalo.Handler {
 	return func(c buffalo.Context) error {
 		session := c.Session()
@@ -25,7 +24,6 @@ func SetCurrentUser(next buffalo.Handler) buffalo.Handler {
 	}
 }
 
-// Authorize middleware ensures the user is authenticated
 func Authorize(next buffalo.Handler) buffalo.Handler {
 	return func(c buffalo.Context) error {
 		session := c.Session()
@@ -37,13 +35,11 @@ func Authorize(next buffalo.Handler) buffalo.Handler {
 			}))
 		}
 
-		// Set user context for downstream handlers
 		c.Set("current_user", userID)
 		return next(c)
 	}
 }
 
-// SecurityHeaders middleware adds security headers
 func SecurityHeaders(next buffalo.Handler) buffalo.Handler {
 	return func(c buffalo.Context) error {
 		c.Response().Header().Set("X-Frame-Options", "DENY")
@@ -53,22 +49,18 @@ func SecurityHeaders(next buffalo.Handler) buffalo.Handler {
 	}
 }
 
-// CORS middleware handles Cross-Origin Resource Sharing
 func CORS(next buffalo.Handler) buffalo.Handler {
 	return func(c buffalo.Context) error {
-		// Allow specific origins
-		origin := c.Request().Header.Get("Origin")
-		if origin == "http://localhost:63342" || origin == "http://localhost:3000" {
-			c.Response().Header().Set("Access-Control-Allow-Origin", origin)
-		}
-
+		// Set CORS headers for all responses
+		c.Response().Header().Set("Access-Control-Allow-Origin", "http://localhost:63342")
 		c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token")
 		c.Response().Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Response().Header().Set("Access-Control-Max-Age", "300")
 
+		// Handle preflight requests
 		if c.Request().Method == http.MethodOptions {
-			c.Response().WriteHeader(http.StatusNoContent)
-			return nil
+			return c.Render(http.StatusOK, render.String(""))
 		}
 
 		return next(c)
